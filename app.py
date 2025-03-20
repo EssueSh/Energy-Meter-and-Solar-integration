@@ -30,7 +30,8 @@ def main():
 
     # Create an editable table for selecting appliances
     df = pd.DataFrame(appliance_data)
-    edited_df = st.experimental_data_editor(df, use_container_width=True, num_rows="fixed")
+    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+
 
     # Convert edited DataFrame to list of dictionaries
     appliances = edited_df.to_dict("records")
