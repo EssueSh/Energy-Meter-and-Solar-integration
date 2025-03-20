@@ -4,8 +4,7 @@ import pandas as pd
 def calculate_energy_consumption(selected_appliances):
     total_energy = 0
     for _, row in selected_appliances.iterrows():
-        if row["Select"]:  # Only calculate for selected appliances
-            total_energy += row["Wattage"] * row["Usage Hours"]
+        total_energy += row["Wattage"] * row["Usage Hours"]
     return total_energy
 
 def calculate_solar_generation(panel_type, efficiency, hours_sunlight=5):
@@ -28,17 +27,32 @@ def main():
         ["Air Conditioner", 1500, 8],
     ]
 
-    # Create DataFrame for appliances
+    # Convert to DataFrame with Serial Number
     df = pd.DataFrame(appliance_data, columns=["Appliance", "Wattage", "Usage Hours"])
     df.insert(0, "S.No", range(1, len(df) + 1))  # Add serial number column
-    df["Select"] = False  # Add checkbox column
-
-    # Display table with editable wattage & hours
-    st.subheader("Select Appliances and Edit Wattage & Hours")
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
-
-    # Filter selected appliances
-    selected_appliances = edited_df[edited_df["Select"]]
+    
+    # Create a dictionary to store selections
+    selected_rows = []
+    
+    # Display Table with Checkboxes
+    st.subheader("Select Appliances and Adjust Wattage & Hours")
+    for i in range(len(df)):
+        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 2, 2, 1])
+        with col1:
+            st.write(df.loc[i, "S.No"])
+        with col2:
+            st.write(df.loc[i, "Appliance"])
+        with col3:
+            wattage = st.number_input(f"Wattage for {df.loc[i, 'Appliance']}", value=df.loc[i, "Wattage"], key=f"watt_{i}")
+        with col4:
+            usage_hours = st.number_input(f"Usage Hours for {df.loc[i, 'Appliance']}", value=df.loc[i, "Usage Hours"], key=f"hours_{i}")
+        with col5:
+            selected = st.checkbox("", key=f"select_{i}")
+        
+        if selected:
+            selected_rows.append({"Appliance": df.loc[i, "Appliance"], "Wattage": wattage, "Usage Hours": usage_hours})
+    
+    selected_appliances = pd.DataFrame(selected_rows)
 
     if not selected_appliances.empty:
         total_energy = calculate_energy_consumption(selected_appliances)  # Daily consumption in Wh
