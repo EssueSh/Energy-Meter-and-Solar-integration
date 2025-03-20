@@ -22,6 +22,8 @@ def main():
         "Ceiling Fan (75W)": st.number_input("Number of Ceiling Fans", min_value=0, step=1) * 75,
         "Refrigerator (150W)": st.number_input("Number of Refrigerators", min_value=0, step=1) * 150,
         "TV (100W)": st.number_input("Number of TVs", min_value=0, step=1) * 100,
+        "Air Conditioner (1500W)": st.number_input("Number of Air Conditioners", min_value=0, step=1) * 1500,
+        "Washing Machine (500W)": st.number_input("Number of Washing Machines", min_value=0, step=1) * 500
     }
     
     appliance_usage = {}
