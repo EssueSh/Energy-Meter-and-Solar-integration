@@ -16,8 +16,11 @@ def calculate_energy_consumption(appliances):
     return total_energy  # in Wh (Watt-hours)
 
 # Function to estimate system requirements
-def calculate_system_requirements(total_energy, panel_watt):
-    panels_required = math.ceil(total_energy / (panel_watt * 5))  # 5 sun hours
+def calculate_system_requirements(total_energy, panel_watt, num_panels=None):
+    required_panels = math.ceil(total_energy / (panel_watt * 5))  # 5 sun hours
+
+    if num_panels is None:
+        num_panels = required_panels  # Default to fully meeting the demand
 
     # Battery capacity (Assuming 50% discharge, needs 2x energy storage)
     battery_capacity = math.ceil((total_energy / 1000) * 2)  # in kWh
@@ -26,12 +29,12 @@ def calculate_system_requirements(total_energy, panel_watt):
     inverter_capacity = max(panel_watt, total_energy / 5) * 1.2  # Adding buffer
 
     # Cost Estimation
-    panel_cost = panels_required * panel_watt * PANEL_COST_PER_WATT
+    panel_cost = num_panels * panel_watt * PANEL_COST_PER_WATT
     battery_cost = battery_capacity * BATTERY_COST_PER_KWH
     inverter_cost = (inverter_capacity / 1000) * INVERTER_COST_PER_KW
     total_cost = panel_cost + battery_cost + inverter_cost
 
-    return panels_required, battery_capacity, inverter_capacity, total_cost
+    return required_panels, battery_capacity, inverter_capacity, total_cost, panel_cost
 
 # Streamlit App
 def main():
@@ -65,7 +68,7 @@ def main():
     st.header("☀️ Solar System Requirement")
     selected_panel_watt = st.selectbox("Select panel wattage", [125, 180, 375, 440])
 
-    panels_required, battery_capacity, inverter_capacity, total_cost = calculate_system_requirements(total_energy, selected_panel_watt)
+    panels_required, battery_capacity, inverter_capacity, total_cost, panel_cost = calculate_system_requirements(total_energy, selected_panel_watt)
 
     # Display Required Setup
     st.subheader("🔍 Estimated Solar Setup")
@@ -81,6 +84,8 @@ def main():
     num_panels = st.number_input("Enter the number of solar panels you can afford", min_value=1, value=panels_required)
 
     # Recalculate based on User's Budget
+    panels_required, battery_capacity, inverter_capacity, total_cost, panel_cost = calculate_system_requirements(total_energy, selected_panel_watt, num_panels)
+
     solar_generated = selected_panel_watt * num_panels * 5  # Assuming 5 hours of sunlight
     grid_energy = max(0, total_energy - solar_generated)
     excess_solar = max(0, solar_generated - total_energy)
@@ -104,8 +109,10 @@ def main():
     # Custom System Output
     st.subheader("🔋 Final Solar System Recommendation")
     st.write(f"**Final Panel Setup:** {num_panels} x {selected_panel_watt}W panels")
+    st.write(f"**Estimated Panel Cost:** Rs. {panel_cost:,.2f}")
     st.write(f"**Recommended Battery Capacity:** {battery_capacity} kWh")
     st.write(f"**Recommended Inverter Capacity:** {inverter_capacity:.2f} W")
+    st.write(f"**Updated Total System Cost:** Rs. {total_cost:,.2f}")
 
 if __name__ == "__main__":
     main()
