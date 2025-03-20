@@ -1,56 +1,60 @@
 import streamlit as st
 
-# Appliance power ratings (in Watts)
-appliance_power = {
-    "Fan": 75,
-    "Air Conditioner": 1500,
-    "Refrigerator": 200,
-    "LED Bulb": 10,
-    "Washing Machine": 500,
-    "Television": 100,
-    "Iron": 1000,
-    "Microwave Oven": 1200
-}
+def calculate_energy_consumption(appliances):
+    total_energy = 0
+    for appliance, usage in appliances.items():
+        total_energy += appliance * usage
+    return total_energy
 
-def calculate_energy_consumption(appliance, hours_per_day):
-    power = appliance_power[appliance]
-    daily_energy = power * hours_per_day  # in Wh
-    monthly_energy = (daily_energy * 30) / 1000  # Convert to kWh (Units)
-    return monthly_energy
+def calculate_solar_generation(panel_type, efficiency, hours_sunlight=5):
+    panel_ratings = {"125W": 125, "180W": 180, "375W": 375, "440W": 440}
+    if panel_type not in panel_ratings:
+        return 0
+    return panel_ratings[panel_type] * efficiency / 100 * hours_sunlight
 
-def calculate_solar_savings(monthly_energy, panel_capacity, panel_efficiency, electricity_rate=8):
-    solar_generation = (panel_capacity * panel_efficiency / 100) * 30  # Monthly solar energy (kWh)
-    grid_energy_needed = max(0, monthly_energy - solar_generation)
-    monthly_bill = grid_energy_needed * electricity_rate
-    return solar_generation, monthly_bill
-
-# Streamlit UI
-st.title("Energy Meter and Solar Panel Savings Calculator")
-
-# Step 1: Select Appliance
-st.header("1. Select Home Appliance")
-appliance = st.selectbox("Choose an Appliance", list(appliance_power.keys()))
-usage_hours = st.number_input("Daily Usage (Hours)", min_value=0.5, step=0.5)
-
-if st.button("Calculate Monthly Energy Consumption"):
-    monthly_energy = calculate_energy_consumption(appliance, usage_hours)
-    st.success(f"Estimated Monthly Energy Consumption: {monthly_energy:.2f} kWh (Units)")
+def main():
+    st.title("Energy Meter and Solar Panel Optimization")
     
-    # Step 2: Enter Solar Panel Details
-    st.header("2. Solar Panel Specifications")
-    panel_capacity = st.number_input("Solar Panel Capacity (Watts)", min_value=100, step=50)
-    panel_efficiency = st.slider("Solar Panel Efficiency (%)", min_value=50, max_value=100, value=90)
+    # Appliance Selection
+    st.header("Select Home Electrical Appliances")
+    appliances = {
+        "LED Bulb (10W)": st.number_input("Number of LED Bulbs", min_value=0, step=1) * 10,
+        "Ceiling Fan (75W)": st.number_input("Number of Ceiling Fans", min_value=0, step=1) * 75,
+        "Refrigerator (150W)": st.number_input("Number of Refrigerators", min_value=0, step=1) * 150,
+        "TV (100W)": st.number_input("Number of TVs", min_value=0, step=1) * 100,
+    }
     
-    if st.button("Calculate Savings"):
-        solar_generation, monthly_bill = calculate_solar_savings(monthly_energy, panel_capacity, panel_efficiency)
-        st.success(f"Solar Energy Generated: {solar_generation:.2f} kWh per month")
-        st.success(f"Estimated Monthly Electricity Bill: ₹{monthly_bill:.2f}")
-        
-        # Final Recommendation
-        if monthly_bill == 0:
-            st.balloons()
-            st.success("Your solar system fully covers your energy needs! No electricity bill!")
-        elif solar_generation > monthly_energy / 2:
-            st.info("Great! Your solar panels significantly reduce your bill.")
-        else:
-            st.warning("Consider increasing solar capacity to save more!")
+    appliance_usage = {}
+    for key in appliances.keys():
+        appliance_usage[appliances[key]] = st.number_input(f"Usage hours for {key}", min_value=0, step=1)
+    
+    total_energy = calculate_energy_consumption(appliance_usage)  # Daily consumption in Wh
+    
+    # Solar Panel Selection
+    st.header("Solar Panel Selection")
+    panel_type = st.selectbox("Choose Solar Panel Type", ["125W", "180W", "375W", "440W"])
+    efficiency = st.slider("Solar Panel Efficiency (%)", min_value=50, max_value=100, value=90)
+    solar_generated = calculate_solar_generation(panel_type, efficiency)
+    
+    # Grid Interaction
+    st.header("Grid Interaction and Bill Calculation")
+    grid_energy = max(0, total_energy - solar_generated)  # If solar can't meet demand, grid supplies
+    excess_solar = max(0, solar_generated - total_energy)  # Extra energy sent to grid
+    bill_without_solar = (total_energy / 1000) * 8  # Rs.8 per kWh
+    bill_with_solar = (grid_energy / 1000) * 8  # After considering solar contribution
+    bill_credit = (excess_solar / 1000) * 5  # Rs.5 per kWh for exported energy
+    final_bill = max(0, bill_with_solar - bill_credit)
+    
+    # Display Results
+    st.subheader("Energy Consumption & Savings")
+    st.write(f"Daily Energy Consumption: {total_energy:.2f} Wh")
+    st.write(f"Solar Energy Generated: {solar_generated:.2f} Wh")
+    st.write(f"Grid Energy Required: {grid_energy:.2f} Wh")
+    st.write(f"Excess Solar Sent to Grid: {excess_solar:.2f} Wh")
+    st.write(f"Bill Without Solar: Rs. {bill_without_solar:.2f}")
+    st.write(f"Bill With Solar: Rs. {bill_with_solar:.2f}")
+    st.write(f"Bill Credit for Exported Energy: Rs. {bill_credit:.2f}")
+    st.success(f"Final Monthly Bill: Rs. {final_bill:.2f}")
+
+if __name__ == "__main__":
+    main()
