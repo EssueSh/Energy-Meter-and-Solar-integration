@@ -38,7 +38,7 @@ def calculate_system_requirements(total_energy, panel_watt, num_panels=None):
 
 # Streamlit App
 def main():
-    st.title("🔋 Energy Meter & Solar System Estimator")
+    st.title("Energy Meter & Solar System Estimator")
 
     # Appliance Selection Table
     st.header("⚡ Select Appliances & Usage Hours")
