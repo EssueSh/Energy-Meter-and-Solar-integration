@@ -1,110 +1,138 @@
 import streamlit as st
 import pandas as pd
+import math
 
-def calculate_energy_consumption(selected_appliances):
+# Function to calculate total energy consumption
+def calculate_energy_consumption(appliances):
     total_energy = 0
-    for _, row in selected_appliances.iterrows():
-        total_energy += row["Wattage"] * row["Usage Hours"]
-    return total_energy  # Total energy in Wh per day
+    for _, row in appliances.iterrows():
+        if row["Selected"]:
+            total_energy += row["Watt"] * row["Usage Hours"]
+    return total_energy  # in Wh (Watt-hours)
 
-def calculate_solar_requirements(total_energy, panel_type, efficiency, battery_backup):
+# Function to calculate solar energy generation
+def calculate_solar_generation(panel_type, efficiency, hours_sunlight=5):
     panel_ratings = {"125W": 125, "180W": 180, "375W": 375, "440W": 440}
-    panel_wattage = panel_ratings[panel_type]
-    solar_generated = panel_wattage * efficiency / 100 * 5  # Assuming 5 hours of sunlight
+    return panel_ratings[panel_type] * efficiency / 100 * hours_sunlight  # in Wh
 
-    panels_required = total_energy / solar_generated  
-    battery_capacity = total_energy / 12  # 12V system (Wh to Ah)
-    inverter_capacity = total_energy / 1000  # kW inverter required
+# Function to estimate solar panel, battery, and inverter requirements
+def calculate_system_requirements(total_energy):
+    panel_options = {"125W": 125, "180W": 180, "375W": 375, "440W": 440}
+    
+    # Determine number of panels needed for each type
+    panel_recommendations = {
+        panel: math.ceil(total_energy / (panel_watt * 5))  # 5 hours sunlight
+        for panel, panel_watt in panel_options.items()
+    }
 
-    return panels_required, battery_capacity, inverter_capacity
+    # Battery capacity (Assuming 50% discharge, needs 2x energy storage)
+    battery_capacity = math.ceil((total_energy / 1000) * 2)  # in kWh
 
-def estimate_cost(panels_required, panel_type):
-    panel_cost = {"125W": 5000, "180W": 7000, "375W": 15000, "440W": 18000}
-    battery_cost_per_Ah = 150  
-    inverter_cost_per_kW = 20000  
+    # Inverter size (should handle peak power)
+    peak_power = max(panel_options.values())  # in Watts
+    inverter_capacity = peak_power * 1.2  # Adding buffer
 
-    panel_total_cost = panels_required * panel_cost[panel_type]
-    battery_capacity = panels_required * 100  # Assuming each panel supports 100Ah battery
-    battery_total_cost = battery_capacity * battery_cost_per_Ah
-    inverter_total_cost = (battery_capacity / 100) * inverter_cost_per_kW
+    # Cost estimation (Assumed values)
+    panel_costs = {"125W": 5000, "180W": 7000, "375W": 15000, "440W": 18000}  # Per panel cost
+    battery_cost_per_kWh = 12000
+    inverter_cost_per_kW = 25000
 
-    return panel_total_cost, battery_total_cost, inverter_total_cost
+    cost_estimations = {
+        panel: (panel_recommendations[panel] * panel_costs[panel]) +
+               (battery_capacity * battery_cost_per_kWh) +
+               (inverter_capacity / 1000 * inverter_cost_per_kW)
+        for panel in panel_options.keys()
+    }
 
+    return panel_recommendations, battery_capacity, inverter_capacity, cost_estimations
+
+# Streamlit App
 def main():
-    st.title("Solar Panel System Calculator")
-
-    appliance_data = [
-        ["LED Bulb", 10, 4],
-        ["Ceiling Fan", 75, 6],
-        ["Refrigerator", 150, 24],
-        ["TV", 100, 5],
-        ["Washing Machine", 500, 2],
-        ["Microwave", 1200, 1],
-        ["Air Conditioner", 1500, 8],
-    ]
-
-    df = pd.DataFrame(appliance_data, columns=["Appliance", "Wattage", "Usage Hours"])
-    df.insert(0, "S.No", range(1, len(df) + 1))
+    st.title("Energy Meter and Solar System Estimator")
     
-    selected_rows = []
+    # Appliance Selection Table
+    st.header("Select Home Electrical Appliances and Usage")
 
-    st.subheader("Select Appliances and Adjust Wattage & Hours")
-    for i in range(len(df)):
-        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 2, 2, 1])
-        with col1:
-            st.write(df.loc[i, "S.No"])
-        with col2:
-            st.write(df.loc[i, "Appliance"])
-        with col3:
-            wattage = st.number_input(f"Wattage for {df.loc[i, 'Appliance']}", value=df.loc[i, "Wattage"], key=f"watt_{i}")
-        with col4:
-            usage_hours = st.number_input(f"Usage Hours for {df.loc[i, 'Appliance']}", value=df.loc[i, "Usage Hours"], key=f"hours_{i}")
-        with col5:
-            selected = st.checkbox("", key=f"select_{i}")
-        
-        if selected:
-            selected_rows.append({"Appliance": df.loc[i, "Appliance"], "Wattage": wattage, "Usage Hours": usage_hours})
+    data = {
+        "Appliance": ["LED Bulb", "Ceiling Fan", "Refrigerator", "TV", "Washing Machine", "Microwave", "Laptop", "Iron"],
+        "Watt": [10, 75, 150, 100, 500, 1200, 60, 1000],
+        "Usage Hours": [0] * 8,  # Default values
+        "Selected": [False] * 8
+    }
+
+    df = pd.DataFrame(data)
+
+    edited_df = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="fixed",
+        column_config={
+            "Selected": st.column_config.CheckboxColumn("Include?", help="Select appliances to include in calculation"),
+            "Usage Hours": st.column_config.NumberColumn("Hours/Day", min_value=0, max_value=24, step=1),
+        }
+    )
+
+    total_energy = calculate_energy_consumption(edited_df)
+
+    # Solar Panel Selection
+    st.header("Solar Panel Selection")
+    panel_type = st.selectbox("Choose Solar Panel Type", ["125W", "180W", "375W", "440W"])
+    efficiency = st.slider("Solar Panel Efficiency (%)", min_value=50, max_value=100, value=90)
+
+    solar_generated = calculate_solar_generation(panel_type, efficiency)
     
-    selected_appliances = pd.DataFrame(selected_rows)
+    # Grid Interaction
+    grid_energy = max(0, total_energy - solar_generated)
+    excess_solar = max(0, solar_generated - total_energy)
+    bill_without_solar = (total_energy / 1000) * 8  # Rs.8 per kWh
+    bill_with_solar = (grid_energy / 1000) * 8
+    bill_credit = (excess_solar / 1000) * 5
+    final_bill = max(0, bill_with_solar - bill_credit)
 
-    if not selected_appliances.empty:
-        total_energy = calculate_energy_consumption(selected_appliances)
+    # System Requirement Calculation
+    panel_recommendations, battery_capacity, inverter_capacity, cost_estimations = calculate_system_requirements(total_energy)
 
-        st.header("Solar Panel Selection")
-        panel_type = st.selectbox("Choose Solar Panel Type", ["125W", "180W", "375W", "440W"])
-        efficiency = st.slider("Solar Panel Efficiency (%)", min_value=50, max_value=100, value=90)
-        battery_backup = st.slider("Battery Backup Required (hours)", min_value=0, max_value=24, value=5)
+    # Display Energy Consumption
+    st.subheader("Energy Consumption & Solar Impact")
+    st.write(f"Total Daily Energy Consumption: **{total_energy:.2f} Wh**")
+    st.write(f"Solar Energy Generated: **{solar_generated:.2f} Wh**")
+    st.write(f"Grid Energy Required: **{grid_energy:.2f} Wh**")
+    st.write(f"Excess Solar Sent to Grid: **{excess_solar:.2f} Wh**")
+    st.write(f"Estimated Bill Without Solar: **Rs. {bill_without_solar:.2f}**")
+    st.write(f"Estimated Bill With Solar: **Rs. {bill_with_solar:.2f}**")
+    st.write(f"Bill Credit for Exported Energy: **Rs. {bill_credit:.2f}**")
+    st.success(f"Final Monthly Bill: **Rs. {final_bill:.2f}**")
 
-        panels_required, battery_capacity, inverter_capacity = calculate_solar_requirements(total_energy, panel_type, efficiency, battery_backup)
-        panel_total_cost, battery_total_cost, inverter_total_cost = estimate_cost(panels_required, panel_type)
+    # Display Solar Recommendations
+    st.subheader("Solar Panel & System Recommendations")
+    for panel, count in panel_recommendations.items():
+        st.write(f"**{panel}**: {count} panels required (Estimated Cost: **Rs. {cost_estimations[panel]:,.2f}**)")
 
-        total_system_cost = panel_total_cost + battery_total_cost + inverter_total_cost
+    st.write(f"**Recommended Battery Capacity:** {battery_capacity} kWh")
+    st.write(f"**Recommended Inverter Capacity:** {inverter_capacity:.2f} W")
 
-        st.subheader("System Requirements and Estimated Cost")
-        st.write(f"🔋 **Total Energy Consumption**: {total_energy:.2f} Wh per day")
-        st.write(f"🔆 **Solar Panels Required**: {panels_required:.2f} ({panel_type})")
-        st.write(f"🔋 **Battery Capacity Needed**: {battery_capacity:.2f} Ah (12V System)")
-        st.write(f"⚡ **Inverter Capacity Required**: {inverter_capacity:.2f} kW")
+    # User selection for affordability
+    st.header("Customize Your Solar Setup")
+    max_panels = st.number_input(
+        "How many solar panels can you afford?",
+        min_value=1,
+        max_value=max(1, panel_recommendations[panel_type]),  # Ensures min is 1
+        value=max(1, panel_recommendations[panel_type])
+    )
 
-        st.subheader("Cost Estimation")
-        st.write(f"🛠️ **Solar Panel Cost**: Rs. {panel_total_cost:.2f}")
-        st.write(f"🔋 **Battery Cost**: Rs. {battery_total_cost:.2f}")
-        st.write(f"⚡ **Inverter Cost**: Rs. {inverter_total_cost:.2f}")
-        st.success(f"💰 **Total Estimated Cost**: Rs. {total_system_cost:.2f}")
+    # Recalculate based on user's selected number of panels
+    user_solar_generated = max_panels * calculate_solar_generation(panel_type, efficiency)
+    user_grid_energy = max(0, total_energy - user_solar_generated)
+    user_bill_with_solar = (user_grid_energy / 1000) * 8
+    user_bill_credit = (max(0, user_solar_generated - total_energy) / 1000) * 5
+    user_final_bill = max(0, user_bill_with_solar - user_bill_credit)
 
-        st.header("Customize Your System")
-        max_panels = st.number_input("How many solar panels can you afford?", min_value=1, max_value=int(panels_required), value=int(panels_required))
-        
-        adjusted_panels_required = min(max_panels, panels_required)
-        adjusted_solar_generated = adjusted_panels_required * (panel_total_cost / panels_required)
-        adjusted_grid_energy = max(0, total_energy - adjusted_solar_generated)
-        adjusted_bill = (adjusted_grid_energy / 1000) * 8  # Rs.8 per kWh
-
-        st.subheader("Updated System Based on Your Budget")
-        st.write(f"🔆 **Selected Solar Panels**: {adjusted_panels_required}")
-        st.write(f"⚡ **Updated Energy from Solar**: {adjusted_solar_generated:.2f} Wh")
-        st.write(f"💡 **Updated Grid Energy Required**: {adjusted_grid_energy:.2f} Wh")
-        st.success(f"💰 **New Estimated Monthly Bill**: Rs. {adjusted_bill:.2f}")
+    st.subheader("Final Cost & Impact with Selected Panels")
+    st.write(f"Selected Solar Panels: **{max_panels} x {panel_type}**")
+    st.write(f"Solar Energy Generated: **{user_solar_generated:.2f} Wh**")
+    st.write(f"New Grid Energy Required: **{user_grid_energy:.2f} Wh**")
+    st.write(f"New Estimated Monthly Bill: **Rs. {user_final_bill:.2f}**")
+    st.success(f"Final Cost for {max_panels} panels: **Rs. {max_panels * cost_estimations[panel_type]:,.2f}**")
 
 if __name__ == "__main__":
     main()
