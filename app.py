@@ -1,8 +1,9 @@
 import streamlit as st
+import pandas as pd
 
 # Function to calculate total energy consumption
 def calculate_energy_consumption(appliances):
-    total_energy = sum(watt * hours for watt, hours in appliances)
+    total_energy = sum(appliance["Wattage"] * appliance["Hours"] for appliance in appliances if appliance["Hours"] > 0)
     return total_energy
 
 # Function to calculate solar energy generation
@@ -13,34 +14,36 @@ def calculate_solar_generation(panel_type, efficiency, hours_sunlight=5):
 # Streamlit app
 def main():
     st.title("Energy Meter and Solar Panel Optimization")
-    
-    # Appliance selection
+
+    # Appliance Selection
     st.header("Select Home Electrical Appliances")
-    appliance_options = {
-        "LED Bulb": 10, 
-        "Ceiling Fan": 75, 
-        "Refrigerator": 150, 
-        "TV": 100,
-        "Air Conditioner": 2000,
-        "Washing Machine": 500
-    }
     
-    selected_appliances = st.multiselect("Choose appliances", list(appliance_options.keys()))
+    # Default appliance data
+    appliance_data = [
+        {"Appliance": "LED Bulb", "Wattage": 10, "Hours": 0},
+        {"Appliance": "Ceiling Fan", "Wattage": 75, "Hours": 0},
+        {"Appliance": "Refrigerator", "Wattage": 150, "Hours": 0},
+        {"Appliance": "TV", "Wattage": 100, "Hours": 0},
+        {"Appliance": "Air Conditioner", "Wattage": 2000, "Hours": 0},
+        {"Appliance": "Washing Machine", "Wattage": 500, "Hours": 0}
+    ]
 
-    appliances = []
-    for appliance in selected_appliances:
-        watt = st.number_input(f"Enter wattage for {appliance}", min_value=1, value=appliance_options[appliance])
-        hours = st.number_input(f"Usage hours per day for {appliance}", min_value=0, step=1)
-        appliances.append((watt, hours))
+    # Create an editable table for selecting appliances
+    df = pd.DataFrame(appliance_data)
+    edited_df = st.experimental_data_editor(df, use_container_width=True, num_rows="fixed")
 
+    # Convert edited DataFrame to list of dictionaries
+    appliances = edited_df.to_dict("records")
+
+    # Calculate total energy
     total_energy = calculate_energy_consumption(appliances)  # Daily consumption in Wh
-    
+
     # Solar Panel Selection
     st.header("Solar Panel Selection")
     panel_type = st.selectbox("Choose Solar Panel Type", ["125W", "180W", "375W", "440W"])
     efficiency = st.slider("Solar Panel Efficiency (%)", min_value=50, max_value=100, value=90)
     solar_generated = calculate_solar_generation(panel_type, efficiency)
-    
+
     # Grid Interaction
     st.header("Grid Interaction and Bill Calculation")
     grid_energy = max(0, total_energy - solar_generated)  # If solar can't meet demand, grid supplies
@@ -49,7 +52,7 @@ def main():
     bill_with_solar = (grid_energy / 1000) * 8  # After considering solar contribution
     bill_credit = (excess_solar / 1000) * 5  # Rs.5 per kWh for exported energy
     final_bill = max(0, bill_with_solar - bill_credit)
-    
+
     # Display Results
     st.subheader("Energy Consumption & Savings")
     st.write(f"Daily Energy Consumption: {total_energy:.2f} Wh")
