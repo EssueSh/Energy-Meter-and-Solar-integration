@@ -1,36 +1,39 @@
 import streamlit as st
 
+# Function to calculate total energy consumption
 def calculate_energy_consumption(appliances):
-    total_energy = 0
-    for appliance, usage in appliances.items():
-        total_energy += appliance * usage
+    total_energy = sum(watt * hours for watt, hours in appliances)
     return total_energy
 
+# Function to calculate solar energy generation
 def calculate_solar_generation(panel_type, efficiency, hours_sunlight=5):
     panel_ratings = {"125W": 125, "180W": 180, "375W": 375, "440W": 440}
-    if panel_type not in panel_ratings:
-        return 0
-    return panel_ratings[panel_type] * efficiency / 100 * hours_sunlight
+    return panel_ratings[panel_type] * (efficiency / 100) * hours_sunlight if panel_type in panel_ratings else 0
 
+# Streamlit app
 def main():
     st.title("Energy Meter and Solar Panel Optimization")
     
-    # Appliance Selection
+    # Appliance selection
     st.header("Select Home Electrical Appliances")
-    appliances = {
-        "LED Bulb (10W)": st.number_input("Number of LED Bulbs", min_value=0, step=1) * 10,
-        "Ceiling Fan (75W)": st.number_input("Number of Ceiling Fans", min_value=0, step=1) * 75,
-        "Refrigerator (150W)": st.number_input("Number of Refrigerators", min_value=0, step=1) * 150,
-        "TV (100W)": st.number_input("Number of TVs", min_value=0, step=1) * 100,
-        "Air Conditioner (1500W)": st.number_input("Number of Air Conditioners", min_value=0, step=1) * 1500,
-        "Washing Machine (500W)": st.number_input("Number of Washing Machines", min_value=0, step=1) * 500
+    appliance_options = {
+        "LED Bulb": 10, 
+        "Ceiling Fan": 75, 
+        "Refrigerator": 150, 
+        "TV": 100,
+        "Air Conditioner": 2000,
+        "Washing Machine": 500
     }
     
-    appliance_usage = {}
-    for key in appliances.keys():
-        appliance_usage[appliances[key]] = st.number_input(f"Usage hours for {key}", min_value=0, step=1)
-    
-    total_energy = calculate_energy_consumption(appliance_usage)  # Daily consumption in Wh
+    selected_appliances = st.multiselect("Choose appliances", list(appliance_options.keys()))
+
+    appliances = []
+    for appliance in selected_appliances:
+        watt = st.number_input(f"Enter wattage for {appliance}", min_value=1, value=appliance_options[appliance])
+        hours = st.number_input(f"Usage hours per day for {appliance}", min_value=0, step=1)
+        appliances.append((watt, hours))
+
+    total_energy = calculate_energy_consumption(appliances)  # Daily consumption in Wh
     
     # Solar Panel Selection
     st.header("Solar Panel Selection")
