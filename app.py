@@ -120,7 +120,7 @@ def calculate_energy_consumption(appliances):
     total_energy = 0
     for _, row in appliances.iterrows():
         if row["Selected"]:
-            total_energy += row["Watt"] * row["Usage Hours"]
+            total_energy += row["Watt"] * row["Usage Hours"] * row["No. of Appliances"]
     return total_energy  # in Wh (Watt-hours)
 
 # Function to estimate system requirements
@@ -155,6 +155,7 @@ def solar():
         "Appliance": ["LED Bulb", "Ceiling Fan", "Refrigerator", "TV", "Washing Machine", "Microwave", "Laptop", "Iron"],
         "Watt": [10, 75, 150, 100, 500, 1200, 60, 1000],
         "Usage Hours": [0] * 8,  # Default values
+        "No. of Appliances": [1] * 8,  # Default: 1 appliance
         "Selected": [False] * 8
     }
 
