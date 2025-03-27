@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
-import math
+import numpy as np
 import joblib
 import matplotlib.pyplot as plt
+import seaborn as sns
+import math
 
 # Constants for cost estimation
 PANEL_COST_PER_WATT = 40  # Approx Rs. per watt
@@ -37,7 +39,10 @@ def prediction_page():
 
             # Remove 'SystemProduction' if present
             if "SystemProduction" in df.columns:
+                actual_production = df["SystemProduction"].copy()
                 df.drop(columns=["SystemProduction"], inplace=True)
+            else:
+                actual_production = None  # No actual data available
 
             # Scale features & predict
             X_scaled = scaler.transform(df)
@@ -46,6 +51,27 @@ def prediction_page():
             # Display results
             st.write("### 📊 Predictions:")
             st.dataframe(df)
+
+            # 📉 **Graph: Past vs Predicted Energy Production**
+            fig, ax = plt.subplots(figsize=(10, 5))
+            if actual_production is not None:
+                ax.plot(actual_production, label="Actual Production", linestyle="--", color="blue")
+            ax.plot(df["Predicted System Production"], label="Predicted Production", linestyle="-", color="red")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Energy Production (kWh)")
+            ax.set_title("📈 Energy Production: Actual vs Predicted")
+            ax.legend()
+            st.pyplot(fig)
+
+            # 📊 **Graph: Future Month Prediction**
+            future_df = df.copy()
+            future_df["Day"] += 30  # Shift date by 30 days (approx next month)
+            plt.figure(figsize=(10, 5))
+            sns.lineplot(data=future_df, x="Day", y="Predicted System Production", color="green", marker="o")
+            plt.xlabel("Upcoming Days")
+            plt.ylabel("Predicted Energy Production (kWh)")
+            plt.title("🔮 Energy Prediction for Next Month")
+            st.pyplot(plt)
 
             # Download option
             csv_output = df.to_csv(index=False).encode("utf-8")
@@ -57,31 +83,36 @@ def prediction_page():
         # **Manual Input Section**
         col1, col2 = st.columns(2)
         with col1:
-            wind_speed = st.number_input("💨 Wind Speed (m/s)", min_value=0.0, step=0.1)
-            sunshine = st.number_input("☀️ Sunshine (hours)", min_value=0.0, step=0.1)
-            air_pressure = st.number_input("🌡️ Air Pressure (hPa)", min_value=900.0, max_value=1100.0, step=0.1)
+            wind_speed = st.number_input("💨 Wind Speed (m/s)", min_value=0.0, step=0.1, value=0.0)
+            sunshine = st.number_input("☀️ Sunshine (hours)", min_value=0.0, step=0.1, value=0.0)
+            air_pressure = st.number_input("🌡️ Air Pressure (hPa)", min_value=900.0, max_value=1100.0, step=0.1, value=1013.0)
 
         with col2:
-            radiation = st.number_input("🔆 Radiation (W/m²)", step=0.1)
-            air_temperature = st.number_input("🌡️ Air Temperature (°C)", step=0.1)
-            relative_humidity = st.number_input("💧 Relative Humidity (%)", min_value=0, max_value=100, step=1)
+            radiation = st.number_input("🔆 Radiation (W/m²)", step=0.1, value=0.0)
+            air_temperature = st.number_input("🌡️ Air Temperature (°C)", step=0.1, value=25.0)
+            relative_humidity = st.number_input("💧 Relative Humidity (%)", min_value=0, max_value=100, step=1, value=50)
 
         # Date & Time input
         datetime_input = st.date_input("📅 Select Date")
         hour_input = st.slider("⏳ Select Hour", 0, 23, 12)
 
         if st.button("🔍 Predict"):
-            # Prepare input data for prediction
-            input_data = np.array([[wind_speed, sunshine, air_pressure, radiation, air_temperature, relative_humidity,
-                                    hour_input, datetime_input.day, datetime_input.month, datetime_input.year]])
-            input_scaled = scaler.transform(input_data)
-            prediction = model.predict(input_scaled)[0]
+            try:
+                # Ensure inputs are properly formatted before processing
+                input_data = np.array([[wind_speed, sunshine, air_pressure, radiation, air_temperature, relative_humidity,
+                                        hour_input, datetime_input.day, datetime_input.month, datetime_input.year]])
+                input_scaled = scaler.transform(input_data)
+                prediction = model.predict(input_scaled)[0]
 
-            st.write("### 📢 Prediction Result")
-            st.write(f"**Predicted System Production:** `{prediction:.2f} kWh`")
-            
-            # Display success message
-            st.success("✅ Prediction successful! Check the output above.")
+                st.write("### 📢 Prediction Result")
+                st.write(f"**Predicted System Production:** `{prediction:.2f} kWh`")
+                
+                # Display success message
+                st.success("✅ Prediction successful! Check the output above.")
+
+            except Exception as e:
+                st.error(f"⚠️ An error occurred: {str(e)}")
+
 
 
 # Function to calculate total energy consumption
