@@ -19,10 +19,12 @@ def load_model():
             model = pickle.load(model_file)
         with open(SCALER_PATH, "rb") as scaler_file:
             scaler = pickle.load(scaler_file)
+        st.write("✅ Model and scaler loaded successfully.")
         return model, scaler
     except Exception as e:
-        st.error(f"Error loading model: {e}")
+        st.error(f"❌ Error loading model: {e}")
         return None, None
+
 
 def predict_energy(data):
     model, scaler = load_model()
