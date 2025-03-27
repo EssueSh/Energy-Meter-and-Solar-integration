@@ -168,6 +168,7 @@ def solar():
         column_config={
             "Selected": st.column_config.CheckboxColumn("Include?", help="Select appliances to include in calculation"),
             "Usage Hours": st.column_config.NumberColumn("Hours/Day", min_value=0, max_value=24, step=1),
+            "No. of Appliances": st.column_config.NumberColumn("Quantity", min_value=1, step=1),
         }
     )
 
