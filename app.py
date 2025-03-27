@@ -9,7 +9,7 @@ PANEL_COST_PER_WATT = 40  # Rs. per watt
 BATTERY_COST_PER_KWH = 10000  # Rs. per kWh
 INVERTER_COST_PER_KW = 12000  # Rs. per kW
 
-MODEL_PATH = "model.pkl"
+MODEL_PATH = "energy_model.pkl"
 SCALER_PATH = "scaler.pkl"
 
 @st.cache_resource
