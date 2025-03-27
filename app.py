@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import math
-import pickle
+import joblib
 import matplotlib.pyplot as plt
 
 # Constants for cost estimation
