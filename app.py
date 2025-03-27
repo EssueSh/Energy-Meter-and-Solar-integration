@@ -97,7 +97,7 @@ def calculate_system_requirements(total_energy, panel_watt, num_panels=None):
     return required_panels, battery_capacity, inverter_capacity, total_cost, panel_cost
 
 # Streamlit App
-def main():
+def solar():
     st.title("Energy Meter & Solar System Estimator")
 
     # Appliance Selection Table
@@ -173,6 +173,17 @@ def main():
     st.write(f"**Recommended Battery Capacity:** {battery_capacity} kWh")
     st.write(f"**Recommended Inverter Capacity:** {inverter_capacity:.2f} W")
     st.write(f"**Updated Total System Cost:** Rs. {total_cost:,.2f}")
+def main():
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Go to", ["Solar System Estimator", "Energy Prediction"])
+
+    if page == "Solar System Estimator":
+        solar()  # Calls your existing solar system estimator function
+
+    elif page == "Energy Prediction":
+        prediction_page()  # Calls your existing energy prediction function
 
 if __name__ == "__main__":
-    main() 
+    main()
+
+
