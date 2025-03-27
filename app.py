@@ -81,7 +81,7 @@ def main():
     # Step 2: User Enters Custom Panels
     st.header("🔧 Customize Your Setup")
 
-    num_panels = st.number_input("Enter the number of solar panels you can afford", min_value=1, value=panels_required)
+    num_panels = st.number_input("Enter the number of solar panels you can afford", min_value=1, value=max(1, panels_required))
 
     # Recalculate based on User's Budget
     panels_required, battery_capacity, inverter_capacity, total_cost, panel_cost = calculate_system_requirements(total_energy, selected_panel_watt, num_panels)
