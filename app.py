@@ -175,4 +175,4 @@ def main():
     st.write(f"**Updated Total System Cost:** Rs. {total_cost:,.2f}")
 
 if __name__ == "__main__":
-    main() this is my code thill now make required changes
+    main() 
