@@ -9,62 +9,79 @@ PANEL_COST_PER_WATT = 40  # Approx Rs. per watt
 BATTERY_COST_PER_KWH = 10000  # Rs. per kWh
 INVERTER_COST_PER_KW = 12000  # Rs. per kW
 
-MODEL_PATH = "energy_model.pkl"
-SCALER_PATH = "scaler.pkl"
-
-def load_model():
-    with open(MODEL_PATH, "rb") as model_file:
-        model = pickle.load(model_file)
-    with open(SCALER_PATH, "rb") as scaler_file:
-        scaler = pickle.load(scaler_file)
-    return model, scaler
-
-def predict_energy(data):
-    model, scaler = load_model()
-    scaled_data = scaler.transform(data)
-    predictions = model.predict(scaled_data)
-    return predictions
+model = joblib.load("energy_model.pkl")
+scaler = joblib.load("scaler.pkl")
 
 def prediction_page():
-    st.title("🔮 Energy Prediction")
-    
-    option = st.radio("Choose Input Method:", ("Manual Entry", "Upload Excel File"))
-    
-    if option == "Manual Entry":
+    """Streamlit Prediction Page for Solar Energy Production"""
+
+    st.title("☀️ Solar Energy Production Prediction")
+    st.write("Predict the solar energy output based on weather parameters. Choose to either upload a CSV file or enter the values manually.")
+
+    # **Option Selection**
+    option = st.radio("Select Input Method:", ("Upload CSV", "Manual Input"))
+
+    if option == "Upload CSV":
+        uploaded_file = st.file_uploader("📂 Upload CSV File", type=["csv"])
+
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+
+            # Convert 'Date-Hour(NMT)' to datetime and extract features
+            df["Date-Hour(NMT)"] = pd.to_datetime(df["Date-Hour(NMT)"], format="%d.%m.%Y-%H:%M", errors="coerce")
+            df["Hour"] = df["Date-Hour(NMT)"].dt.hour
+            df["Day"] = df["Date-Hour(NMT)"].dt.day
+            df["Month"] = df["Date-Hour(NMT)"].dt.month
+            df["Year"] = df["Date-Hour(NMT)"].dt.year
+            df.drop(columns=["Date-Hour(NMT)"], inplace=True)
+
+            # Remove 'SystemProduction' if present
+            if "SystemProduction" in df.columns:
+                df.drop(columns=["SystemProduction"], inplace=True)
+
+            # Scale features & predict
+            X_scaled = scaler.transform(df)
+            df["Predicted System Production"] = model.predict(X_scaled)
+
+            # Display results
+            st.write("### 📊 Predictions:")
+            st.dataframe(df)
+
+            # Download option
+            csv_output = df.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇️ Download Predictions", data=csv_output, file_name="predictions.csv", mime="text/csv")
+
+    elif option == "Manual Input":
+        st.write("### 📝 Enter Weather Parameters")
+
+        # **Manual Input Section**
         col1, col2 = st.columns(2)
         with col1:
-            temp = st.number_input("Temperature", value=25.0)
-            humidity = st.number_input("Humidity", value=50.0)
+            wind_speed = st.number_input("💨 Wind Speed (m/s)", min_value=0.0, step=0.1)
+            sunshine = st.number_input("☀️ Sunshine (hours)", min_value=0.0, step=0.1)
+            air_pressure = st.number_input("🌡️ Air Pressure (hPa)", min_value=900.0, max_value=1100.0, step=0.1)
+
         with col2:
-            wind_speed = st.number_input("Wind Speed", value=5.0)
-            solar_irradiance = st.number_input("Solar Irradiance", value=300.0)
-        
-        input_data = pd.DataFrame([[temp, humidity, wind_speed, solar_irradiance]],
-                                  columns=["Temperature", "Humidity", "Wind Speed", "Solar Irradiance"])
-        
-        if st.button("Predict Energy"):
-            prediction = predict_energy(input_data)[0]
-            st.success(f"Predicted Energy: {prediction:.2f} kWh")
-    
-    elif option == "Upload Excel File":
-        uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx", "csv"])
-        if uploaded_file:
-            df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith("xlsx") else pd.read_csv(uploaded_file)
-            st.write("Preview:", df.head())
-            predictions = predict_energy(df)
-            df["Predicted Energy"] = predictions
+            radiation = st.number_input("🔆 Radiation (W/m²)", step=0.1)
+            air_temperature = st.number_input("🌡️ Air Temperature (°C)", step=0.1)
+            relative_humidity = st.number_input("💧 Relative Humidity (%)", min_value=0, max_value=100, step=1)
+
+        # Date & Time input
+        datetime_input = st.date_input("📅 Select Date")
+        hour_input = st.slider("⏳ Select Hour", 0, 23, 12)
+
+        if st.button("🔍 Predict"):
+            # Prepare input data for prediction
+            input_data = np.array([[wind_speed, sunshine, air_pressure, radiation, air_temperature, relative_humidity,
+                                    hour_input, datetime_input.day, datetime_input.month, datetime_input.year]])
+            input_scaled = scaler.transform(input_data)
+            prediction = model.predict(input_scaled)[0]
+
+            st.write("### 📢 Prediction Result")
+            st.write(f"**Predicted System Production:** `{prediction:.2f} kWh`")
             
-            st.write("Predictions:", df)
-            st.download_button("Download Predictions", df.to_csv(index=False), "predictions.csv", "text/csv")
-            
-            # Visualization
-            fig, ax = plt.subplots()
-            ax.plot(df.index, df["Predicted Energy"], label="Predicted Energy", color='orange')
-            ax.set_xlabel("Day")
-            ax.set_ylabel("Energy (kWh)")
-            ax.set_title("Predicted Energy Generation for Next Month")
-            ax.legend()
-            st.pyplot(fig)
+            # Display success message
+            st.success("✅ Prediction successful! Check the output above.")
 
 
 # Function to calculate total energy consumption
