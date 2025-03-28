@@ -116,6 +116,11 @@ def prediction_page():
             except Exception as e:
                 st.error(f"⚠️ An error occurred: {str(e)}")
 
+def is_valid_timestamp(timestamp: str) -> bool:
+    """Check if the timestamp matches the required format: YYYY-MM-DD HH:MM:SS"""
+    timestamp_pattern = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
+    return bool(re.match(timestamp_pattern, timestamp))
+    
 def anomaly_detection_app():
     st.title("⚡ Smart Meter Anomaly Detection")
     st.write("Choose how you want to input data: **Manually** or **Upload an Excel file**.")
@@ -124,7 +129,8 @@ def anomaly_detection_app():
 
     if mode == "Manual Entry":
         st.subheader("🔹 Enter Smart Meter Data")
-        timestamp = st.text_input("📅 Timestamp (YYYY-MM-DD HH:MM:SS)", value="2024-03-28 12:00:00")
+        default_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = st.text_input("📅 Timestamp (YYYY-MM-DD HH:MM:SS)", value=default_timestamp, max_chars=19)
         energy_consumption = st.number_input("🔋 Energy Consumption (kWh)", min_value=0.0, step=0.1)
         voltage = st.number_input("⚡ Voltage (V)", min_value=0.0, step=0.1)
         current = st.number_input("🔌 Current (A)", min_value=0.0, step=0.1)
