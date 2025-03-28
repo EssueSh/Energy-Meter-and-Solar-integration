@@ -16,3 +16,4 @@ altair
 plotly
 shap
 mlxtend
+re
