@@ -117,10 +117,12 @@ def prediction_page():
             except Exception as e:
                 st.error(f"⚠️ An error occurred: {str(e)}")
 
-def is_valid_timestamp(timestamp: str) -> bool:
-    """Check if the timestamp matches the required format: YYYY-MM-DD HH:MM:SS"""
-    timestamp_pattern = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
-    return bool(re.match(timestamp_pattern, timestamp))
+def is_valid_timestamp(timestamp):
+    try:
+        datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        return True
+    except ValueError:
+        return False
 
 def anomaly_detection_app():
     st.title("⚡ Smart Meter Anomaly Detection")
@@ -141,13 +143,11 @@ def anomaly_detection_app():
         if st.button("🔍 Predict"):
             try:
                 if not is_valid_timestamp(timestamp):
-                    raise ValueError("Invalid timestamp format.")
+                    st.error("⚠️ Invalid timestamp format. Please use YYYY-MM-DD HH:MM:SS.")
+                    return
 
                 timestamp_unix = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp()
                 input_data = np.array([[timestamp_unix, electricity_consumed, temperature, humidity, wind_speed, avg_past_consumption]])
-                
-                if input_data.shape[1] != 6:
-                    raise ValueError(f"Unexpected number of features: {input_data.shape[1]}. Expected 6.")
 
                 processed_data = scaler1.transform(input_data)
                 prediction = modelxg.predict(processed_data)
@@ -155,10 +155,14 @@ def anomaly_detection_app():
 
                 st.subheader("🔹 Prediction Result:")
                 st.write(f"**{result}**")
-                st.warning("⚠️ The reading indicates an **anomaly**. Please investigate further.") if result == "Abnormal ⚠️" else st.success("✅ The reading appears to be **normal**.")
+                
+                if result == "Abnormal ⚠️":
+                    st.warning("⚠️ The reading indicates an **anomaly**. Please investigate further.")
+                else:
+                    st.success("✅ The reading appears to be **normal**.")
 
-            except ValueError as e:
-                st.error(f"⚠️ {str(e)}")
+            except Exception as e:
+                st.error(f"⚠️ An error occurred: {str(e)}")
 
     elif mode == "Upload Excel":
         st.subheader("🔹 Upload Excel File")
@@ -197,7 +201,11 @@ def anomaly_detection_app():
 
             st.subheader("🔹 Overall System Status:")
             anomaly_count = df["Anomaly"].sum()
-            st.warning(f"⚠️ Detected **{anomaly_count} abnormal readings**. Further investigation needed.") if anomaly_count > 0 else st.success("✅ All readings are **normal**. No anomalies detected.")
+            
+            if anomaly_count > 0:
+                st.warning(f"⚠️ Detected **{anomaly_count} abnormal readings**. Further investigation needed.")
+            else:
+                st.success("✅ All readings are **normal**. No anomalies detected.")
 # Function to calculate total energy consumption
 def calculate_energy_consumption(appliances):
     total_energy = 0
