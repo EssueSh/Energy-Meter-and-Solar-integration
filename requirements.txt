@@ -8,4 +8,11 @@ openpyxl
 scikit-learn
 xgboost
 joblib
-
+pyarrow
+fastparquet
+numexpr
+watchdog
+altair
+plotly
+shap
+mlxtend
