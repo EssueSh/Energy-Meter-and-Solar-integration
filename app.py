@@ -13,6 +13,8 @@ INVERTER_COST_PER_KW = 12000  # Rs. per kW
 
 model = joblib.load("energy_model.pkl")
 scaler = joblib.load("scaler.pkl")
+model = joblib.load("xgboost.pkl")  # Ensure this file is in the working directory
+scaler1 = joblib.load("scaler (1).pkl")
 
 def prediction_page():
     """Streamlit Prediction Page for Solar Energy Production"""
@@ -113,6 +115,72 @@ def prediction_page():
             except Exception as e:
                 st.error(f"⚠️ An error occurred: {str(e)}")
 
+def anomaly_detection_app():
+    st.title("⚡ Smart Meter Anomaly Detection")
+    st.write("Choose how you want to input data: **Manually** or **Upload an Excel file**.")
+
+    mode = st.radio("📌 Select Input Mode:", ["Manual Entry", "Upload Excel"])
+
+    if mode == "Manual Entry":
+        st.subheader("🔹 Enter Smart Meter Data")
+        timestamp = st.text_input("📅 Timestamp (YYYY-MM-DD HH:MM:SS)", value="2024-03-28 12:00:00")
+        energy_consumption = st.number_input("🔋 Energy Consumption (kWh)", min_value=0.0, step=0.1)
+        voltage = st.number_input("⚡ Voltage (V)", min_value=0.0, step=0.1)
+        current = st.number_input("🔌 Current (A)", min_value=0.0, step=0.1)
+
+        if st.button("🔍 Predict"):
+            try:
+                timestamp_unix = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp()
+                input_data = np.array([[timestamp_unix, energy_consumption, voltage, current]])
+                processed_data = scaler1.transform(input_data)
+                prediction = model.predict(processed_data)
+                result = "Abnormal ⚠️" if prediction[0] == 1 else "Normal ✅"
+
+                st.subheader("🔹 Prediction Result:")
+                st.write(f"**{result}**")
+                st.warning("⚠️ The reading indicates an **anomaly**. Please investigate further.") if result == "Abnormal ⚠️" else st.success("✅ The reading appears to be **normal**.")
+
+            except ValueError:
+                st.error("⚠️ Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS.")
+
+    elif mode == "Upload Excel":
+        st.subheader("🔹 Upload Excel File")
+        uploaded_file = st.file_uploader("📂 Upload an Excel file", type=["xls", "xlsx"])
+
+        if uploaded_file is not None:
+            df = pd.read_excel(uploaded_file)
+            required_columns = ["Timestamp", "Energy_Consumption", "Voltage", "Current"]
+
+            if not all(col in df.columns for col in required_columns):
+                st.error(f"⚠️ The uploaded file must contain these columns: {', '.join(required_columns)}")
+                return
+
+            df["Timestamp"] = pd.to_datetime(df["Timestamp"]).view(int) / 10**9  
+            X_scaled = scaler1.transform(df[["Timestamp", "Energy_Consumption", "Voltage", "Current"]])
+
+            df["Anomaly"] = model.predict(X_scaled)
+            df["Anomaly_Label"] = df["Anomaly"].map({0: "Normal ✅", 1: "Abnormal ⚠️"})
+
+            st.write("🔍 **Preview of Predictions:**")
+            st.dataframe(df.head())
+
+            st.subheader("📊 Anomaly Distribution")
+            anomaly_counts = df["Anomaly_Label"].value_counts()
+            fig, ax = plt.subplots()
+            ax.pie(anomaly_counts, labels=anomaly_counts.index, autopct='%1.1f%%', colors=["skyblue", "salmon"])
+            st.pyplot(fig)
+
+            st.subheader("📈 Energy Consumption Over Time")
+            fig, ax = plt.subplots(figsize=(10, 4))
+            sns.lineplot(x=df["Timestamp"], y=df["Energy_Consumption"], hue=df["Anomaly_Label"], palette={"Normal ✅": "green", "Abnormal ⚠️": "red"}, ax=ax)
+            ax.set_xlabel("Timestamp")
+            ax.set_ylabel("Energy Consumption (kWh)")
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+
+            st.subheader("🔹 Overall System Status:")
+            anomaly_count = df["Anomaly"].sum()
+            st.warning(f"⚠️ Detected **{anomaly_count} abnormal readings**. Further investigation needed.") if anomaly_count > 0 else st.success("✅ All readings are **normal**. No anomalies detected.")
 
 
 # Function to calculate total energy consumption
@@ -225,13 +293,15 @@ def solar():
     st.write(f"**Updated Total System Cost:** Rs. {total_cost:,.2f}")
 def main():
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Solar System Estimator", "Energy Prediction"])
+    page = st.sidebar.radio("Go to", ["Solar System Estimator", "Energy Prediction","Anomaly Detection in Smart meter"])
 
     if page == "Solar System Estimator":
         solar()  # Calls your existing solar system estimator function
 
     elif page == "Energy Prediction":
         prediction_page()  # Calls your existing energy prediction function
+    elif page == "Anomaly Detection in Smart meter":
+        anomaly_detection_app()
 
 if __name__ == "__main__":
     main()
