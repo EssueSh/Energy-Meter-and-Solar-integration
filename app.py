@@ -25,8 +25,8 @@ def prediction_page():
     # **Option Selection**
     option = st.radio("Select Input Method:", ("Upload CSV", "Manual Input"))
 
-    if option == "Upload CSV":
-        uploaded_file = st.file_uploader("📂 Upload CSV File", type=["csv"])
+    if option == "Upload CSV or XLS":
+        uploaded_file = st.file_uploader("📂 Upload an Excel or CSV file", type=["csv", "xls", "xlsx"])
 
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
@@ -145,7 +145,7 @@ def anomaly_detection_app():
 
     elif mode == "Upload Excel":
         st.subheader("🔹 Upload Excel File")
-        uploaded_file = st.file_uploader("📂 Upload an Excel file", type=["xls", "xlsx"])
+        uploaded_file = st.file_uploader("📂 Upload an Excel or CSV file", type=["csv", "xls", "xlsx"])
 
         if uploaded_file is not None:
             df = pd.read_excel(uploaded_file)
