@@ -120,7 +120,7 @@ def is_valid_timestamp(timestamp: str) -> bool:
     """Check if the timestamp matches the required format: YYYY-MM-DD HH:MM:SS"""
     timestamp_pattern = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
     return bool(re.match(timestamp_pattern, timestamp))
-    
+
 def anomaly_detection_app():
     st.title("⚡ Smart Meter Anomaly Detection")
     st.write("Choose how you want to input data: **Manually** or **Upload an Excel file**.")
@@ -129,13 +129,20 @@ def anomaly_detection_app():
 
     if mode == "Manual Entry":
         st.subheader("🔹 Enter Smart Meter Data")
+        
+        # Default Timestamp
         default_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         timestamp = st.text_input("📅 Timestamp (YYYY-MM-DD HH:MM:SS)", value=default_timestamp, max_chars=19)
+
         energy_consumption = st.number_input("🔋 Energy Consumption (kWh)", min_value=0.0, step=0.1)
         voltage = st.number_input("⚡ Voltage (V)", min_value=0.0, step=0.1)
         current = st.number_input("🔌 Current (A)", min_value=0.0, step=0.1)
 
         if st.button("🔍 Predict"):
+            if not is_valid_timestamp(timestamp):
+                st.error("⚠️ Invalid timestamp format! Please use **YYYY-MM-DD HH:MM:SS**.")
+                return
+
             try:
                 timestamp_unix = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp()
                 input_data = np.array([[timestamp_unix, energy_consumption, voltage, current]])
@@ -145,10 +152,13 @@ def anomaly_detection_app():
 
                 st.subheader("🔹 Prediction Result:")
                 st.write(f"**{result}**")
-                st.warning("⚠️ The reading indicates an **anomaly**. Please investigate further.") if result == "Abnormal ⚠️" else st.success("✅ The reading appears to be **normal**.")
+                if result == "Abnormal ⚠️":
+                    st.warning("⚠️ The reading indicates an **anomaly**. Please investigate further.")
+                else:
+                    st.success("✅ The reading appears to be **normal**.")
 
-            except ValueError:
-                st.error("⚠️ Invalid timestamp format. Use YYYY-MM-DD HH:MM:SS.")
+            except Exception as e:
+                st.error(f"⚠️ Unexpected error: {str(e)}")
 
     elif mode == "Upload Excel":
         st.subheader("🔹 Upload Excel File")
@@ -162,33 +172,46 @@ def anomaly_detection_app():
                 st.error(f"⚠️ The uploaded file must contain these columns: {', '.join(required_columns)}")
                 return
 
-            df["Timestamp"] = pd.to_datetime(df["Timestamp"]).view(int) / 10**9  
-            X_scaled = scaler1.transform(df[["Timestamp", "Energy_Consumption", "Voltage", "Current"]])
+            # Convert Timestamp to Unix format
+            try:
+                df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")  # Handle invalid timestamps
+                if df["Timestamp"].isna().sum() > 0:
+                    st.error("⚠️ Some timestamps are invalid. Ensure correct formatting: YYYY-MM-DD HH:MM:SS")
+                    return
+                df["Timestamp"] = df["Timestamp"].astype(int) // 10**9  # Convert to Unix timestamp
 
-            df["Anomaly"] = modelxg.predict(X_scaled)
-            df["Anomaly_Label"] = df["Anomaly"].map({0: "Normal ✅", 1: "Abnormal ⚠️"})
+                X_scaled = scaler1.transform(df[["Timestamp", "Energy_Consumption", "Voltage", "Current"]])
 
-            st.write("🔍 **Preview of Predictions:**")
-            st.dataframe(df.head())
+                df["Anomaly"] = modelxg.predict(X_scaled)
+                df["Anomaly_Label"] = df["Anomaly"].map({0: "Normal ✅", 1: "Abnormal ⚠️"})
 
-            st.subheader("📊 Anomaly Distribution")
-            anomaly_counts = df["Anomaly_Label"].value_counts()
-            fig, ax = plt.subplots()
-            ax.pie(anomaly_counts, labels=anomaly_counts.index, autopct='%1.1f%%', colors=["skyblue", "salmon"])
-            st.pyplot(fig)
+                st.write("🔍 **Preview of Predictions:**")
+                st.dataframe(df.head())
 
-            st.subheader("📈 Energy Consumption Over Time")
-            fig, ax = plt.subplots(figsize=(10, 4))
-            sns.lineplot(x=df["Timestamp"], y=df["Energy_Consumption"], hue=df["Anomaly_Label"], palette={"Normal ✅": "green", "Abnormal ⚠️": "red"}, ax=ax)
-            ax.set_xlabel("Timestamp")
-            ax.set_ylabel("Energy Consumption (kWh)")
-            plt.xticks(rotation=45)
-            st.pyplot(fig)
+                st.subheader("📊 Anomaly Distribution")
+                anomaly_counts = df["Anomaly_Label"].value_counts()
+                fig, ax = plt.subplots()
+                ax.pie(anomaly_counts, labels=anomaly_counts.index, autopct='%1.1f%%', colors=["skyblue", "salmon"])
+                st.pyplot(fig)
 
-            st.subheader("🔹 Overall System Status:")
-            anomaly_count = df["Anomaly"].sum()
-            st.warning(f"⚠️ Detected **{anomaly_count} abnormal readings**. Further investigation needed.") if anomaly_count > 0 else st.success("✅ All readings are **normal**. No anomalies detected.")
+                st.subheader("📈 Energy Consumption Over Time")
+                fig, ax = plt.subplots(figsize=(10, 4))
+                sns.lineplot(x=df["Timestamp"], y=df["Energy_Consumption"], hue=df["Anomaly_Label"], 
+                             palette={"Normal ✅": "green", "Abnormal ⚠️": "red"}, ax=ax)
+                ax.set_xlabel("Timestamp")
+                ax.set_ylabel("Energy Consumption (kWh)")
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
 
+                st.subheader("🔹 Overall System Status:")
+                anomaly_count = df["Anomaly"].sum()
+                if anomaly_count > 0:
+                    st.warning(f"⚠️ Detected **{anomaly_count} abnormal readings**. Further investigation needed.")
+                else:
+                    st.success("✅ All readings are **normal**. No anomalies detected.")
+
+            except Exception as e:
+                st.error(f"⚠️ Error processing timestamps: {str(e)}")
 
 # Function to calculate total energy consumption
 def calculate_energy_consumption(appliances):
