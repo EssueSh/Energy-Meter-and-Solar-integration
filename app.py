@@ -35,11 +35,11 @@ def prediction_page():
 
             # Convert 'Date-Hour(NMT)' to datetime and extract features
             df["Date-Hour"] = pd.to_datetime(df["Date-Hour(NMT)"], format="%d.%m.%Y-%H:%M", errors="coerce")
-            df["Hour"] = df["Date-Hour(NMT)"].dt.hour
-            df["Day"] = df["Date-Hour(NMT)"].dt.day
-            df["Month"] = df["Date-Hour(NMT)"].dt.month
-            df["Year"] = df["Date-Hour(NMT)"].dt.year
-            df.drop(columns=["Date-Hour(NMT)"], inplace=True)
+            df["Hour"] = df["Date-Hour"].dt.hour
+            df["Day"] = df["Date-Hour"].dt.day
+            df["Month"] = df["Date-Hour"].dt.month
+            df["Year"] = df["Date-Hour"].dt.year
+            df.drop(columns=["Date-Hour"], inplace=True)
 
             # Remove 'SystemProduction' if present
             if "SystemProduction" in df.columns:
