@@ -23,7 +23,7 @@ def prediction_page():
     st.write("Predict the solar energy output based on weather parameters. Choose to either upload a CSV file or enter the values manually.")
 
     # **Option Selection**
-    option = st.radio("Select Input Method:", ("Upload CSV", "Manual Input"))
+    option = st.radio("Select Input Method:", ("Upload CSV or XLS", "Manual Input"))
 
     if option == "Upload CSV or XLS":
         uploaded_file = st.file_uploader("📂 Upload an Excel or CSV file", type=["csv", "xls", "xlsx"])
