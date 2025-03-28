@@ -13,7 +13,7 @@ INVERTER_COST_PER_KW = 12000  # Rs. per kW
 
 model = joblib.load("energy_model.pkl")
 scaler = joblib.load("scaler.pkl")
-model = joblib.load("xgboost.pkl")  # Ensure this file is in the working directory
+modelxg = joblib.load("xgboost.pkl")  # Ensure this file is in the working directory
 scaler1 = joblib.load("scaler (1).pkl")
 
 def prediction_page():
@@ -133,7 +133,7 @@ def anomaly_detection_app():
                 timestamp_unix = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S").timestamp()
                 input_data = np.array([[timestamp_unix, energy_consumption, voltage, current]])
                 processed_data = scaler1.transform(input_data)
-                prediction = model.predict(processed_data)
+                prediction = modelxg.predict(processed_data)
                 result = "Abnormal ⚠️" if prediction[0] == 1 else "Normal ✅"
 
                 st.subheader("🔹 Prediction Result:")
@@ -158,7 +158,7 @@ def anomaly_detection_app():
             df["Timestamp"] = pd.to_datetime(df["Timestamp"]).view(int) / 10**9  
             X_scaled = scaler1.transform(df[["Timestamp", "Energy_Consumption", "Voltage", "Current"]])
 
-            df["Anomaly"] = model.predict(X_scaled)
+            df["Anomaly"] = modelxg.predict(X_scaled)
             df["Anomaly_Label"] = df["Anomaly"].map({0: "Normal ✅", 1: "Abnormal ⚠️"})
 
             st.write("🔍 **Preview of Predictions:**")
