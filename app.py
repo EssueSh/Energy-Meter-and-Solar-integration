@@ -34,7 +34,7 @@ def prediction_page():
             df = pd.read_csv(uploaded_file)
 
             # Convert 'Date-Hour(NMT)' to datetime and extract features
-            df["Date-Hour(NMT)"] = pd.to_datetime(df["Date-Hour(NMT)"], format="%d.%m.%Y-%H:%M", errors="coerce")
+            df["Date-Hour"] = pd.to_datetime(df["Date-Hour(NMT)"], format="%d.%m.%Y-%H:%M", errors="coerce")
             df["Hour"] = df["Date-Hour(NMT)"].dt.hour
             df["Day"] = df["Date-Hour(NMT)"].dt.day
             df["Month"] = df["Date-Hour(NMT)"].dt.month
